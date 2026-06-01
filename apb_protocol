@@ -1,0 +1,93 @@
+`include "design.sv"
+`include "module_slave1.sv"
+`include "module_slave2.sv"
+
+`timescale 1ns/1ns
+
+module apb_protocol(
+input         PCLK,
+input         PRESETn,
+input         transfer,
+input         READ_WRITE,
+input  [8:0]  apb_write_paddr,
+input  [7:0]  apb_write_data,
+input  [8:0]  apb_read_paddr,
+output        PSLVERR,
+output [7:0]  apb_read_data_out
+);
+
+```
+// Internal APB signals
+wire [7:0] PWDATA;
+wire [7:0] PRDATA;
+wire [7:0] PRDATA1;
+wire [7:0] PRDATA2;
+
+wire [8:0] PADDR;
+
+wire PREADY;
+wire PREADY1;
+wire PREADY2;
+
+wire PENABLE;
+wire PSEL1;
+wire PSEL2;
+wire PWRITE;
+
+// Slave ready selection
+assign PREADY = (PADDR[8]) ? PREADY2 : PREADY1;
+
+// Read data mux
+assign PRDATA = READ_WRITE ?
+                ((PADDR[8]) ? PRDATA2 : PRDATA1)
+                : 8'd0;
+
+// Master Bridge
+master_bridge dut_mas(
+    .abp_write_paddr(apb_write_paddr),
+    .abp_read_paddr(apb_read_paddr),
+    .abp_write_data(apb_write_data),
+    .PRDATA(PRDATA),
+    .PRESETn(PRESETn),
+    .PCLK(PCLK),
+    .read_write(READ_WRITE),
+    .transfer(transfer),
+    .PREADY(PREADY),
+    .PSEL1(PSEL1),
+    .PSEL2(PSEL2),
+    .PENABLE(PENABLE),
+    .PADDR(PADDR),
+    .PWRITE(PWRITE),
+    .PWDATA(PWDATA),
+    .abp_read_data_out(apb_read_data_out),
+    .PSLVERR(PSLVERR)
+);
+
+// Slave 1
+slave1 dut1(
+    .PCLK(PCLK),
+    .PRESETn(PRESETn),
+    .PSEL(PSEL1),
+    .PENABLE(PENABLE),
+    .PWRITE(PWRITE),
+    .PADDR(PADDR[7:0]),
+    .PWDATA(PWDATA),
+    .PRDATA1(PRDATA1),
+    .PREADY(PREADY1)
+);
+
+// Slave 2
+slave2 dut2(
+    .PCLK(PCLK),
+    .PRESETn(PRESETn),
+    .PSEL(PSEL2),
+    .PENABLE(PENABLE),
+    .PWRITE(PWRITE),
+    .PADDR(PADDR[7:0]),
+    .PWDATA(PWDATA),
+    .PRDATA2(PRDATA2),
+    .PREADY(PREADY2)
+);
+```
+
+endmodule
